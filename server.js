@@ -84,9 +84,8 @@ app.get("/api/my-orders/:username", async (req, res) => {
 // =======================
 // ✅ START SERVER
 // =======================
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
-// listening on 0.0.0.0 allows connections from your mobile device
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on http://172.20.10.3:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
