@@ -23,6 +23,7 @@ const app = express();
 // =======================
 app.use(cors());
 app.use(express.json());
+console.log("MONGO URI:", process.env.MONGO_URI);
 
 // =======================
 // ✅ DATABASE CONNECTION
@@ -39,9 +40,11 @@ const orderValidationSchema = Joi.object({
   userId: Joi.string().required(),
   item: Joi.string().required(),
   price: Joi.number().required(),
+  image: Joi.string().optional().allow('', null), // Allows empty string or null
   status: Joi.string().optional(),
+  address: Joi.string().optional().allow('', null),        // 👈 ADD THIS
+  paymentMethod: Joi.string().optional().allow('', null),  // 👈 ADD THIS
 });
-
 // =======================
 // ✅ ROUTES
 // =======================
