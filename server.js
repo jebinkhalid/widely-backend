@@ -16,8 +16,7 @@ const jwt = require("jsonwebtoken");
 
 // Import your Models (Ensure these files exist in your models folder)
 const Order = require("./models/order");
-const User = require('./models/User');
-const app = express();
+const User = require('./models/user'); 
 
 // =======================
 // ✅ MIDDLEWARES
