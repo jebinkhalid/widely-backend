@@ -63,34 +63,39 @@ mongoose.connect(process.env.MONGO_URI)
 // =======================
 
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
   try {
-    // We trim and lowercase to avoid simple typing errors
-    const user = await User.findOne({ username: username.trim().toLowerCase() });
+    // 1. Log what the server actually sees (Check Railway Deploy Logs for this!)
+    console.log("Login Body:", req.body);
 
-    // CHANGE: Compare plain text password directly
-    if (user && user.password === password.trim()) { 
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password required" });
+    }
+
+    // 2. Clean the input
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    // 3. Find the user
+    const user = await User.findOne({ username: cleanUsername });
+
+    // 4. Detailed comparison logic
+    if (user && user.password === cleanPassword) {
       const token = jwt.sign(
-        { username: user.username }, 
-        process.env.JWT_SECRET, 
+        { username: user.username },
+        process.env.JWT_SECRET,
         { expiresIn: "30d" }
       );
-      res.json({ token, user: { username: user.username } });
-    } else {
-      res.status(401).json({ message: "Invalid credentials" });
-    }
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      return res.json({ token, user: { username: user.username } });
+    } 
+    
+    // If we reach here, it failed
+    return res.status(401).json({ message: "Invalid credentials" });
 
-// 2. SECURE ORDERS ROUTE
-app.get("/api/my-orders", protect, async (req, res) => {
-  try {
-    const orders = await Order.find({ userId: req.user.username });
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    console.error("Login Error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
