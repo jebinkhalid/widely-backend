@@ -122,6 +122,15 @@ app.get("/api/seed-users", async (req, res) => {
     res.status(500).send("❌ Error seeding: " + err.message);
   }
 });
+// TEMPORARY: DO NOT KEEP THIS IN PRODUCTION
+app.get("/api/check-database", async (req, res) => {
+  try {
+    const users = await User.find({}, "username password"); // Only show username and password
+    res.json(users);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
