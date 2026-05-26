@@ -54,17 +54,17 @@ mongoose.connect(process.env.MONGO_URI)
 // ✅ ROUTES
 // =======================
 
-// 1. LOGIN ROUTE
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
-    const user = await User.findOne({ username });
-    
-    // NOTE: Make sure your User model has a matchPassword method 
-    // or change this to: if (user && user.password === password)
-    if (user && (await user.matchPassword(password))) {
+    // We trim and lowercase to avoid simple typing errors
+    const user = await User.findOne({ username: username.trim().toLowerCase() });
+
+    // CHANGE: Compare plain text password directly
+    if (user && user.password === password.trim()) { 
       const token = jwt.sign(
         { username: user.username }, 
+        process.env.JWT_SECRET, 
         { expiresIn: "30d" }
       );
       res.json({ token, user: { username: user.username } });
@@ -72,7 +72,6 @@ app.post("/api/login", async (req, res) => {
       res.status(401).json({ message: "Invalid credentials" });
     }
   } catch (err) {
-    console.error("Login Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -99,6 +98,30 @@ app.post("/api/place-order", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+// server.js (add before app.listen)
+
+app.get("/api/seed-users", async (req, res) => {
+  try {
+    await User.deleteMany({}); // Clears any old data
+    await User.insertMany([
+      {
+        username: "admin1",
+        password: "password1",
+        name: "Rashid Mohammed",
+        email: "rashidmohammed359862@gmail.com",
+      },
+      {
+        username: "admin2",
+        password: "password2",
+        name: "System Admin",
+        email: "admin@widely.com",
+      }
+    ]);
+    res.send("✅ Database successfully populated with admin users!");
+  } catch (err) {
+    res.status(500).send("❌ Error seeding: " + err.message);
+  }
+});
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
