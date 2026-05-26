@@ -61,40 +61,36 @@ mongoose.connect(process.env.MONGO_URI)
 // =======================
 // ✅ ROUTES
 // =======================
-
 app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
   try {
-    // 1. Log what the server actually sees (Check Railway Deploy Logs for this!)
-    console.log("Login Body:", req.body);
+    // 1. Clean the incoming data
+    const cleanUsername = String(username).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
 
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ message: "Username and password required" });
-    }
-
-    // 2. Clean the input
-    const cleanUsername = username.trim().toLowerCase();
-    const cleanPassword = password.trim();
-
-    // 3. Find the user
+    // 2. Find the user
     const user = await User.findOne({ username: cleanUsername });
 
-    // 4. Detailed comparison logic
-    if (user && user.password === cleanPassword) {
+    // 3. Simple text comparison
+    if (user && user.password === cleanPassword) { 
       const token = jwt.sign(
-        { username: user.username },
-        process.env.JWT_SECRET,
+        { username: user.username }, 
+        process.env.JWT_SECRET, 
         { expiresIn: "30d" }
       );
-      return res.json({ token, user: { username: user.username } });
-    } 
-    
-    // If we reach here, it failed
-    return res.status(401).json({ message: "Invalid credentials" });
-
+      // Return the user object properly
+      res.json({ 
+        token, 
+        user: { 
+          username: user.username,
+          name: user.name,
+          email: user.email 
+        } 
+      });
+    } else {
+      res.status(401).json({ message: "Invalid credentials" });
+    }
   } catch (err) {
-    console.error("Login Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
