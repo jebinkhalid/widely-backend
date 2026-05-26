@@ -14,7 +14,10 @@ const cors = require("cors");
 const Joi = require("joi");
 const jwt = require("jsonwebtoken");
 
-// Import your Models (Ensure these files exist in your models folder)
+// 1. INITIALIZE APP (This was missing!)
+const app = express(); 
+
+// Import your Models
 const Order = require("./models/order");
 const User = require('./models/user'); 
 
@@ -51,16 +54,17 @@ mongoose.connect(process.env.MONGO_URI)
 // ✅ ROUTES
 // =======================
 
-// 1. LOGIN ROUTE (Issues the ID Card)
+// 1. LOGIN ROUTE
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
     const user = await User.findOne({ username });
-    // Replace 'matchPassword' with your actual password check method
+    
+    // NOTE: Make sure your User model has a matchPassword method 
+    // or change this to: if (user && user.password === password)
     if (user && (await user.matchPassword(password))) {
       const token = jwt.sign(
         { username: user.username }, 
-        process.env.JWT_SECRET, 
         { expiresIn: "30d" }
       );
       res.json({ token, user: { username: user.username } });
@@ -68,6 +72,7 @@ app.post("/api/login", async (req, res) => {
       res.status(401).json({ message: "Invalid credentials" });
     }
   } catch (err) {
+    console.error("Login Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
