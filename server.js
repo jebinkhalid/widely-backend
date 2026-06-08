@@ -14,7 +14,6 @@ const cors = require("cors");
 const Joi = require("joi");
 const jwt = require("jsonwebtoken");
 
-// 1. INITIALIZE APP (This was missing!)
 const app = express(); 
 
 // Import your Models
@@ -27,7 +26,6 @@ const User = require('./models/user');
 app.use(cors());
 app.use(express.json());
 
-// The "Security Guard"
 const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -42,6 +40,7 @@ const protect = (req, res, next) => {
     res.status(401).json({ message: "Invalid token" });
   }
 };
+
 app.get("/api/check-database", async (req, res) => {
   try {
     const users = await User.find({}, "username password");
@@ -51,6 +50,7 @@ app.get("/api/check-database", async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+
 // =======================
 // ✅ DATABASE CONNECTION
 // =======================
@@ -61,27 +61,27 @@ mongoose.connect(process.env.MONGO_URI)
 // =======================
 // ✅ ROUTES
 // =======================
+
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
-    // 1. Clean the incoming data
     const cleanUsername = String(username).trim().toLowerCase();
     const cleanPassword = String(password).trim();
 
-    // 2. Find the user
     const user = await User.findOne({ username: cleanUsername });
 
-    // 3. Simple text comparison
     if (user && user.password === cleanPassword) { 
       const token = jwt.sign(
-        { username: user.username }, 
+        { username: user.username, id: user._id }, 
         process.env.JWT_SECRET, 
         { expiresIn: "30d" }
       );
-      // Return the user object properly
+      
+      // ✅ FIXED: Included user._id as id so frontend hook useAuth context has it!
       res.json({ 
         token, 
         user: { 
+          id: user._id,
           username: user.username,
           name: user.name,
           email: user.email 
@@ -95,23 +95,35 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// 3. PLACE ORDER ROUTE
+// ✅ 3. PLACE ORDER ROUTE (Matches your schema)
 app.post("/api/place-order", async (req, res) => {
   try {
     const newOrder = new Order(req.body);
     await newOrder.save();
-    res.status(201).json({ message: "Order saved successfully!" });
+    res.status(201).json({ message: "Order saved successfully!", order: newOrder });
   } catch (err) {
+    console.error("❌ Order Save Error:", err);
     res.status(500).json({ error: "Failed to save order" });
   }
 });
 
-const PORT = process.env.PORT || 5000;
-// server.js (add before app.listen)
+// ✅ NEW: GET USER ORDERS (This was missing! Required by your account screens)
+app.get("/api/my-orders/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`📡 Fetching tracked orders for user: ${userId}`);
+    
+    const orders = await Order.find({ userId: userId }).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) {
+    console.error("❌ Fetch Orders Error:", err);
+    res.status(500).json({ error: "Failed to fetch order list" });
+  }
+});
 
 app.get("/api/seed-users", async (req, res) => {
   try {
-    await User.deleteMany({}); // Clears any old data
+    await User.deleteMany({}); 
     await User.insertMany([
       {
         username: "admin1",
@@ -132,6 +144,7 @@ app.get("/api/seed-users", async (req, res) => {
   }
 });
 
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
