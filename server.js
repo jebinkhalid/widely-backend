@@ -11,12 +11,10 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const Joi = require("joi");
 const jwt = require("jsonwebtoken");
-
 const app = express(); 
 
-// Import your Models
+// Import Models
 const Order = require("./models/order");
 const User = require('./models/user'); 
 
@@ -41,19 +39,13 @@ const protect = (req, res, next) => {
   }
 };
 
-app.get("/api/check-database", async (req, res) => {
-  try {
-    const users = await User.find({}, "username password");
-    res.json(users);
-  } catch (err) {
-    console.error("Database Check Error:", err);
-    res.status(500).send(err.message);
-  }
-});
-
 // =======================
 // ✅ DATABASE CONNECTION
 // =======================
+if (!process.env.MONGO_URI) {
+  console.error("❌ MONGO_URI environment variable is missing!");
+}
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Database Connected!"))
   .catch((err) => console.log("❌ DB Connection Error:", err));
@@ -62,9 +54,18 @@ mongoose.connect(process.env.MONGO_URI)
 // ✅ ROUTES
 // =======================
 
+// Health Check Route (Use this to test if your deployment is live)
+app.get("/", (req, res) => {
+  res.send("🚀 Backend is running smoothly on Render!");
+});
+
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password are required" });
+    }
+
     const cleanUsername = String(username).trim().toLowerCase();
     const cleanPassword = String(password).trim();
 
@@ -73,11 +74,10 @@ app.post("/api/login", async (req, res) => {
     if (user && user.password === cleanPassword) { 
       const token = jwt.sign(
         { username: user.username, id: user._id }, 
-        process.env.JWT_SECRET, 
+        process.env.JWT_SECRET || "fallback_secret_for_dev", 
         { expiresIn: "30d" }
       );
       
-      // ✅ FIXED: Included user._id as id so frontend hook useAuth context has it!
       res.json({ 
         token, 
         user: { 
@@ -91,12 +91,12 @@ app.post("/api/login", async (req, res) => {
       res.status(401).json({ message: "Invalid credentials" });
     }
   } catch (err) {
+    console.error("Login Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// ✅ 3. PLACE ORDER ROUTE (Matches your schema)
-app.post("/api/place-order", async (req, res) => {
+app.post("/api/place-order", protect, async (req, res) => {
   try {
     const newOrder = new Order(req.body);
     await newOrder.save();
@@ -107,8 +107,7 @@ app.post("/api/place-order", async (req, res) => {
   }
 });
 
-// ✅ NEW: GET USER ORDERS (This was missing! Required by your account screens)
-app.get("/api/my-orders/:userId", async (req, res) => {
+app.get("/api/my-orders/:userId", protect, async (req, res) => {
   try {
     const { userId } = req.params;
     console.log(`📡 Fetching tracked orders for user: ${userId}`);
@@ -121,6 +120,7 @@ app.get("/api/my-orders/:userId", async (req, res) => {
   }
 });
 
+// Admin Route: Use with caution in production
 app.get("/api/seed-users", async (req, res) => {
   try {
     await User.deleteMany({}); 
@@ -144,6 +144,9 @@ app.get("/api/seed-users", async (req, res) => {
   }
 });
 
+// =======================
+// ✅ SERVER INITIALIZATION
+// =======================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
